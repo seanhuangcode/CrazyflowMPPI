@@ -10,20 +10,22 @@ rgb = sim.render(mode="rgb_array")             # numpy array (H, W, 3)
 depth = sim.render(mode="depth_array")         # numpy array (H, W)
 rgb, depth = sim.render(mode="rgbd_tuple", camera="fpv_cam:0", width=320, height=240)
 
-goal = np.array([0, 0, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+goal = np.array([0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
 
-ctrl = MPPI(sim, 200, 100, goal)
+ctrl = MPPI(sim, 10000, 200, goal)
 
 history = []
 
-for i in range(1000):
-    ctrl.generate_gaussian_noise(np.array([0.03, 0.08, 0.02, 0.15]))
+for i in range(500):
+    ctrl.generate_gaussian_noise(np.array([0.075, 0.075, 0.075, 1.5]))
     ctrl.rollout(sim.data.states)
-    cmd = ctrl.update_command(100)
+    cmd = ctrl.update_command(20)
     sim.attitude_control(cmd)
     sim.step(5)
     sim.render()
     history.append(sim.data.states.pos[0, 0].copy())
+
+
 
 history = np.array(history)
 plt.plot(history[:, 0], label="x")
