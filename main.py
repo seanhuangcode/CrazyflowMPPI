@@ -10,7 +10,7 @@ rgb = sim.render(mode="rgb_array")             # numpy array (H, W, 3)
 depth = sim.render(mode="depth_array")         # numpy array (H, W)
 rgb, depth = sim.render(mode="rgbd_tuple", camera="fpv_cam:0", width=320, height=240)
 
-goal = np.array([0, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+goal = np.array([4, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
 
 ctrl = MPPI(sim, 20000, 250, np.array([0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]))
 
