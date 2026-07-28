@@ -4,6 +4,11 @@ An MPPI controller using drones from the Crazyflow library (https://learnsyslab.
 <img width="1504" height="852" alt="Screenshot 2026-07-21 at 4 23 23 PM" src="https://github.com/user-attachments/assets/2c2c8fa3-52fc-4421-840b-b9d980c9d5ef" />
 <img width="637" height="481" alt="Screenshot 2026-07-21 at 4 24 46 PM" src="https://github.com/user-attachments/assets/7438ff54-d86f-4bc9-ae86-3fa0f3b1c60f" />  
 <br>
-A few issues, the drone overshoots its target height by quite a bit 😅😅
+<img width="627" height="532" alt="Screenshot 2026-07-28 at 10 45 55 AM" src="https://github.com/user-attachments/assets/e72b7c4d-547b-4ada-b110-07707ea3ad7e" />
+
+# Target: x=0, y=0, z=1 
+
+Accuracy significantly increases with new velocity and orientation penalty as well as terminal cost. More samples and a larger horizon help massively.
+
 
 
