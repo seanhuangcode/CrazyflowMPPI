@@ -25,11 +25,9 @@ class MPPI():
 
     def generate_gaussian_noise(self, dev):
         self.noise = np.random.normal(0, dev, (self.samples, self.horizon, 4))
-        # Keep thrust perturbations zero-mean instead of adding a large upward bias.
         self.noise[:, :, 3] = np.random.normal(0, dev[3], size=(self.samples, self.horizon))
         self.cmd_list = np.tile(self.nominal_cmd, (self.samples, 1, 1)) #(samples, horizon, 4)
 
-    
         
     def calculate_cost(self):
         pos = self.sim_world.data.states.pos[:,0,:]
@@ -38,15 +36,15 @@ class MPPI():
         error = pos - self.goal[:3]
 
         pos_cost = (
-            5.0 * abs(error[:,0]) +
-            5.0 * abs(error[:,1]) +
-            10.0 * abs(error[:,2])
+            10.0 * error[:,0]**2 +
+            10.0 * error[:,1]**2 +
+            20.0 * error[:,2]**2
         )
 
         vel_cost = (
-            1.0 * vel[:,0]**2 +   # x velocity
-            1.0 * vel[:,1]**2 +   # y velocity
-            0.5 * vel[:,2]**2     # z velocity
+            4.0 * vel[:,0]**2 +
+            4.0 * vel[:,1]**2 +
+            0.2 * vel[:,2]**2
         )
 
         self.costs += pos_cost + vel_cost
@@ -60,15 +58,17 @@ class MPPI():
         dist_to_goal = np.linalg.norm(pos - self.goal[:3], axis=1)
         speed_sq = np.sum(vel**2, axis=1)
 
-        near_goal_radius = 0.3  # meters, tune to your goal tolerance
+        terminal_pos_weight = 100.0
+        self.costs += terminal_pos_weight * np.sum((pos - self.goal[:3])**2, axis=1)
+
+        near_goal_radius = 0.3
         closeness = np.clip(1.0 - dist_to_goal / near_goal_radius, 0.0, 1.0)
 
         terminal_vel_weight = 20.0
         self.costs += terminal_vel_weight * closeness * speed_sq
 
-        # Orientation only penalized at the end, gated by closeness — free to
-        # tilt during travel, expected to be level once it's actually arrived.
         qx, qy = quat[:,0], quat[:,1]
+
         terminal_tilt_weight = 15.0
         self.costs += terminal_tilt_weight * closeness * (qx**2 + qy**2)
     
