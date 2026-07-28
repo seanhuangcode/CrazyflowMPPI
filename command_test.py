@@ -9,7 +9,7 @@ import time
 with open("counter.pkl", "rb") as file:
     file_number = pickle.load(file)
 
-with open(f'command_data{file_number - 1}.pkl', "rb") as file:
+with open(f'commands/command_data{file_number - 1}.pkl', "rb") as file:
     command_list = pickle.load(file)
 
 sim = Sim(n_worlds=1, n_drones=1, freq=500, control=Control.attitude)
