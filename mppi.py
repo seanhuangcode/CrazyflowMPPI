@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 class MPPI():
     def __init__(self, simulator, samples, horizon, goal):
 
-        cmd = np.array([[[0.0, 0.0, 0.0, 0.4]]])
+        cmd = np.array([[[0.0, 0.0, 0.0, 1]]])
 
         self.simulator = simulator
         self.samples = samples
@@ -29,12 +29,11 @@ class MPPI():
         self.noise[:, :, 3] = np.random.normal(0, dev[3], size=(self.samples, self.horizon))
         self.cmd_list = np.tile(self.nominal_cmd, (self.samples, 1, 1)) #(samples, horizon, 4)
 
- 
     
+        
     def calculate_cost(self):
         pos = self.sim_world.data.states.pos[:,0,:]
         vel = self.sim_world.data.states.vel[:,0,:]
-        quat = self.sim_world.data.states.quat[:,0,:]
 
         error = pos - self.goal[:3]
 
@@ -44,24 +43,34 @@ class MPPI():
             10.0 * abs(error[:,2])
         )
 
-        vel_cost = 0.5 * np.sum(vel**2, axis=1)
+        vel_cost = (
+            1.0 * vel[:,0]**2 +   # x velocity
+            1.0 * vel[:,1]**2 +   # y velocity
+            0.5 * vel[:,2]**2     # z velocity
+        )
 
-        qx, qy = quat[:,0], quat[:,1]
-        tilt_cost = 15.0 * (qx**2 + qy**2)
+        self.costs += pos_cost + vel_cost
 
-        self.costs += pos_cost + vel_cost + tilt_cost
 
     def calculate_terminal_cost(self):
         pos = self.sim_world.data.states.pos[:,0,:]
         vel = self.sim_world.data.states.vel[:,0,:]
+        quat = self.sim_world.data.states.quat[:,0,:]
 
         dist_to_goal = np.linalg.norm(pos - self.goal[:3], axis=1)
         speed_sq = np.sum(vel**2, axis=1)
-        near_goal_radius = 0.3  
+
+        near_goal_radius = 0.3  # meters, tune to your goal tolerance
         closeness = np.clip(1.0 - dist_to_goal / near_goal_radius, 0.0, 1.0)
 
-        terminal_vel_weight = 20.0  
+        terminal_vel_weight = 20.0
         self.costs += terminal_vel_weight * closeness * speed_sq
+
+        # Orientation only penalized at the end, gated by closeness — free to
+        # tilt during travel, expected to be level once it's actually arrived.
+        qx, qy = quat[:,0], quat[:,1]
+        terminal_tilt_weight = 15.0
+        self.costs += terminal_tilt_weight * closeness * (qx**2 + qy**2)
     
     def rollout(self, real_states):
         self.sim_world.data = self.sim_world.data.replace(
@@ -84,7 +93,7 @@ class MPPI():
 
         self.calculate_terminal_cost() 
 
-        print(np.sum(self.costs)/ self.samples, real_states.pos[2])
+        print(np.min(self.costs) / self.samples, real_states.pos[2])
         
 
     def update_command(self, lamb):
