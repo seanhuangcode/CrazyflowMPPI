@@ -14,28 +14,29 @@ rgb = sim.render(mode="rgb_array")             # numpy array (H, W, 3)
 depth = sim.render(mode="depth_array")         # numpy array (H, W)
 rgb, depth = sim.render(mode="rgbd_tuple", camera="fpv_cam:0", width=320, height=240)
 
-goal = np.array([0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+goal = np.array([7, 7, 7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
 
-ctrl = MPPI(sim, 500, 250, np.array([0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]))
+ctrl = MPPI(sim, 2000, 60, np.array([0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]))
 
 history = []
 command_history = []
 
-for i in range(200):
-    if i == 100:
-        ctrl.goal = goal
-    ctrl.generate_gaussian_noise(np.array([0.05,0.05,0.05,0.3]))
+print(sim.data.controls.attitude.freq)
+
+ctrl.goal = goal
+
+for i in range(400):
+    ctrl.generate_gaussian_noise(np.array([0.05,0.05,0.05,0.1]))
     ctrl.rollout(sim.data.states)
-    cmd = ctrl.update_command(50)
+    cmd = ctrl.update_command(25)
     sim.attitude_control(cmd)
     command_history.append(cmd)
-    sim.step(5)
-    sim.render()
+    sim.step(7)
     history.append(sim.data.states.pos[0, 0].copy())
 
 command_history = np.array(command_history)
 
-with open(f'command_data{file_counter}.pkl', "wb") as file:
+with open(f'commands/command_data{file_counter}.pkl', "wb") as file:
     pickle.dump(command_history, file)
 
 with open("counter.pkl", "wb") as file:

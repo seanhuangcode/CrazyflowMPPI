@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 class MPPI():
     def __init__(self, simulator, samples, horizon, goal):
 
-        cmd = np.array([[[0.0, 0.0, 0.0, 1]]])
+        cmd = np.array([[[0.0, 0.0, 0.0, 0.427]]])
 
         self.simulator = simulator
         self.samples = samples
@@ -20,7 +20,7 @@ class MPPI():
 
         self.costs = np.zeros(self.samples)
 
-        self.sim_world = Sim(n_worlds=samples, n_drones=1, freq=200, control=Control.attitude)
+        self.sim_world = Sim(n_worlds=samples, n_drones=1, freq=500, control=Control.attitude)
     
 
     def generate_gaussian_noise(self, dev):
@@ -44,10 +44,10 @@ class MPPI():
         vel_cost = (
             4.0 * vel[:,0]**2 +
             4.0 * vel[:,1]**2 +
-            0.2 * vel[:,2]**2
+            0.5 * vel[:,2]**2
         )
 
-        self.costs += pos_cost + vel_cost
+        self.costs += pos_cost + 1 * vel_cost
 
 
     def calculate_terminal_cost(self):
@@ -58,19 +58,28 @@ class MPPI():
         dist_to_goal = np.linalg.norm(pos - self.goal[:3], axis=1)
         speed_sq = np.sum(vel**2, axis=1)
 
-        terminal_pos_weight = 100.0
-        self.costs += terminal_pos_weight * np.sum((pos - self.goal[:3])**2, axis=1)
+        FACTOR = 1
+
+        terminal_pos_weight = 150.0
+        error = pos - self.goal[:3]
+        pos_cost = (
+                    1* error[:,0]**2 +
+                    1 * error[:,1]**2 +
+                    1 * error[:,2]**2
+                )
+
+        self.costs += FACTOR * terminal_pos_weight * pos_cost
 
         near_goal_radius = 0.3
         closeness = np.clip(1.0 - dist_to_goal / near_goal_radius, 0.0, 1.0)
 
         terminal_vel_weight = 20.0
-        self.costs += terminal_vel_weight * closeness * speed_sq
+        self.costs += FACTOR * terminal_vel_weight * closeness * speed_sq
 
         qx, qy = quat[:,0], quat[:,1]
 
         terminal_tilt_weight = 15.0
-        self.costs += terminal_tilt_weight * closeness * (qx**2 + qy**2)
+        self.costs += FACTOR * terminal_tilt_weight * closeness * (qx**2 + qy**2)
     
     def rollout(self, real_states):
         self.sim_world.data = self.sim_world.data.replace(
@@ -88,7 +97,7 @@ class MPPI():
         for i in range(self.horizon):
             step_cmd = perturbed_cmd_list[:, i, :].reshape(self.samples, 1, 4)
             self.sim_world.attitude_control(step_cmd)
-            self.sim_world.step(1)
+            self.sim_world.step(7)
             self.calculate_cost()
 
         self.calculate_terminal_cost() 
