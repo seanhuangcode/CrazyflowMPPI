@@ -15,17 +15,14 @@ rgb = sim.render(mode="rgb_array")             # numpy array (H, W, 3)
 depth = sim.render(mode="depth_array")         # numpy array (H, W)
 rgb, depth = sim.render(mode="rgbd_tuple", camera="fpv_cam:0", width=320, height=240)
 
-goal = np.array([5, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+goal = np.array([0, 6, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
 
-ctrl = MPPI(sim, 2000, 100, np.array([0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]), np.array([2,0,1]))
+ctrl = MPPI(sim, 2000, 70, goal, np.array([0,3,1]))
 
 history = []
 command_history = []
 
-
-for i in range(400):
-    if i == 50: 
-        ctrl.goal = goal
+for i in range(500):
     ctrl.generate_gaussian_noise(np.array([0.1,0.1,0.05,0.1]))
     ctrl.rollout(sim.data.states)
     cmd = ctrl.update_command(25)

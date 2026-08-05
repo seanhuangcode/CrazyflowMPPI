@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 class MPPI():
     def __init__(self, simulator, samples, horizon, goal, obstacles):
 
-        cmd = np.array([[[0.0, 0.0, 0.0, 0.427]]])
+        cmd = np.array([[[0.05, 0.0, 0.0, 0.427]]])
 
         self.simulator = simulator
         self.samples = samples
@@ -29,18 +29,18 @@ class MPPI():
         self.noise[:, :, 3] = np.random.normal(0, dev[3], size=(self.samples, self.horizon))
         self.cmd_list = np.tile(self.nominal_cmd, (self.samples, 1, 1)) #(samples, horizon, 4)
 
+
     def calculate_obstacle_cost(self):
-
         pos = self.sim_world.data.states.pos[:,0,:]
-
         radius = 1
+        safe_distance = 1.5
 
         distance = np.linalg.norm(pos - self.obstacle, axis=1) - radius
-        safe_distance = 1
-        cost = np.maximum(0, safe_distance-distance)**2
 
-        return 1e6 * cost
+        soft_cost = np.maximum(0, safe_distance - distance)**2  
+        hard_cost = (distance < 0).astype(float)                 
 
+        return 1e3 * soft_cost + 1e6 * hard_cost
         
     def calculate_cost(self):
         pos = self.sim_world.data.states.pos[:,0,:]
@@ -123,13 +123,17 @@ class MPPI():
         self.calculate_terminal_cost() 
 
         print(np.min(self.costs) / self.samples, real_states.pos[2])
-        
+
 
     def update_command(self, lamb):
 
         low_cost = np.min(self.costs)
+        spread = np.std(self.costs) + 1e-6
+        weights = np.exp(-(self.costs - low_cost) / (lamb * spread / 25))
 
-        weights = np.exp(-1/lamb * (self.costs - low_cost))
+        w_norm = weights / weights.sum()
+        ess = 1.0 / np.sum(w_norm**2)
+        print("ESS:", ess)
 
         delta_u = (np.sum(np.reshape(weights, (self.samples, 1, 1)) * self.noise.reshape((self.samples, self.horizon, 4)), axis=0)) \
                 / np.sum(weights)
@@ -140,6 +144,7 @@ class MPPI():
 
         self.nominal_cmd[:, :-1, :] = self.nominal_cmd[:, 1:, :]
         self.nominal_cmd[:, -1, :] = self.cmd
+
 
 
         return cmd
