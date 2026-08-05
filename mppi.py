@@ -4,7 +4,7 @@ from crazyflow.control import Control
 import matplotlib.pyplot as plt
 
 class MPPI():
-    def __init__(self, simulator, samples, horizon, goal):
+    def __init__(self, simulator, samples, horizon, goal, obstacles):
 
         cmd = np.array([[[0.0, 0.0, 0.0, 0.427]]])
 
@@ -14,9 +14,10 @@ class MPPI():
         self.horizon = horizon
         self.goal = goal
 
+        self.obstacle = obstacles
+
         self.cmd = cmd
         self.nominal_cmd = np.tile(self.cmd, (1, self.horizon, 1))
-
 
         self.costs = np.zeros(self.samples)
 
@@ -27,6 +28,18 @@ class MPPI():
         self.noise = np.random.normal(0, dev, (self.samples, self.horizon, 4))
         self.noise[:, :, 3] = np.random.normal(0, dev[3], size=(self.samples, self.horizon))
         self.cmd_list = np.tile(self.nominal_cmd, (self.samples, 1, 1)) #(samples, horizon, 4)
+
+    def calculate_obstacle_cost(self):
+
+        pos = self.sim_world.data.states.pos[:,0,:]
+
+        radius = 1
+
+        distance = np.linalg.norm(pos - self.obstacle, axis=1) - radius
+        safe_distance = 1
+        cost = np.maximum(0, safe_distance-distance)**2
+
+        return 1e6 * cost
 
         
     def calculate_cost(self):
@@ -41,14 +54,21 @@ class MPPI():
             20.0 * error[:,2]**2
         )
 
+        z = pos[:, 2]
+
+        below_height = np.maximum(0, 0.5 - z)
+
+        self.costs += 100 * below_height**2
+
         vel_cost = (
             4.0 * vel[:,0]**2 +
             4.0 * vel[:,1]**2 +
-            0.5 * vel[:,2]**2
+            10 * vel[:,2]**2
         )
 
-        self.costs += pos_cost + 1 * vel_cost
+        obstacle_cost = self.calculate_obstacle_cost()
 
+        self.costs += pos_cost + 0.75 * vel_cost + obstacle_cost
 
     def calculate_terminal_cost(self):
         pos = self.sim_world.data.states.pos[:,0,:]
@@ -78,7 +98,7 @@ class MPPI():
 
         qx, qy = quat[:,0], quat[:,1]
 
-        terminal_tilt_weight = 15.0
+        terminal_tilt_weight = 50
         self.costs += FACTOR * terminal_tilt_weight * closeness * (qx**2 + qy**2)
     
     def rollout(self, real_states):
@@ -124,3 +144,10 @@ class MPPI():
 
         return cmd
     
+def sphere_sdf(points, center, radius):
+    """
+    points: (N,3)
+    returns: (N,)
+    """
+
+    return np.linalg.norm(points - center, axis=1) - radius

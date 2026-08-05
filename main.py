@@ -4,6 +4,7 @@ from crazyflow.control import Control
 import matplotlib.pyplot as plt
 import pickle
 from mppi import MPPI
+import random
 
 with open("counter.pkl", "rb") as file:
     file_counter = pickle.load(file)
@@ -14,24 +15,24 @@ rgb = sim.render(mode="rgb_array")             # numpy array (H, W, 3)
 depth = sim.render(mode="depth_array")         # numpy array (H, W)
 rgb, depth = sim.render(mode="rgbd_tuple", camera="fpv_cam:0", width=320, height=240)
 
-goal = np.array([7, 7, 7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+goal = np.array([5, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
 
-ctrl = MPPI(sim, 2000, 60, np.array([0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]))
+ctrl = MPPI(sim, 2000, 100, np.array([0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]), np.array([2,0,1]))
 
 history = []
 command_history = []
 
-print(sim.data.controls.attitude.freq)
-
-ctrl.goal = goal
 
 for i in range(400):
-    ctrl.generate_gaussian_noise(np.array([0.05,0.05,0.05,0.1]))
+    if i == 50: 
+        ctrl.goal = goal
+    ctrl.generate_gaussian_noise(np.array([0.1,0.1,0.05,0.1]))
     ctrl.rollout(sim.data.states)
     cmd = ctrl.update_command(25)
     sim.attitude_control(cmd)
     command_history.append(cmd)
     sim.step(7)
+    sim.render()
     history.append(sim.data.states.pos[0, 0].copy())
 
 command_history = np.array(command_history)
